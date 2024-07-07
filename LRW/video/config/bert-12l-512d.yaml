@@ -1,0 +1,58 @@
+devices: [0, 1, 2, 3]
+
+data:
+  train: ./LRW/lipread_dataset/*/train/*.pkl
+  validation: ./LRW/lipread_dataset/*/val/*.pkl
+  test: ./LRW/lipread_dataset/*/test/*.pkl
+  label_directory: ./LRW/lipread_dataset
+  durations: ./LRW/lipread_durations.csv
+  input_size: 96
+
+model:
+  name: transformer
+  resnet: resnet18
+  wav2vec:
+    path: ./LRW/vq-wav2vec_kmeans.pt
+    alignment: 4
+  bert:
+    type: x-transformers
+    num_tokens: 1
+    dim: 513
+    depth: 12
+    heads: 8
+    emb_dropout: 0.1
+    attn_dropout: 0.1
+    layer_dropout: 0.2
+    ff_dropout: 0.3
+    use_rmsnorm: true
+    ff_glu: true
+    rotary_pos_emb: true
+    num_labels: 500
+
+optim:
+  optimizer:
+    lr: 1e-4
+    betas: [0.9, 0.999]
+    eps: 1e-6
+    weight_decay: 0.01
+  scheduler:
+    name: linear
+    num_warmup_steps: 5000
+    num_training_steps: 100000
+  lambda_audio: 10.0
+
+train:
+  name: x-transformers-resnet18-audio10
+  method: sync
+  batch_size: 96
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  gradient_checkpointing: false
+  validation_interval: 1.0
+  log_every_n_steps: 10
+  label_smoothing: 0.0
+  use_cutmix: true
+  kl_alpha: 1.0
+
+evaluate:
+  ckpt_path: ./checkpoints/transformer_lambda10_no_WB_9240.ckpt

@@ -1,0 +1,60 @@
+devices: [0, 1, 2, 3]
+
+data:
+  train: ./LRW/lipread_dataset/*/train/*.pkl
+  validation: ./LRW/lipread_dataset/*/val/*.pkl
+  test: ./LRW/lipread_dataset/*/test/*.pkl
+  label_directory: ./LRW/lipread_dataset
+  durations: ./LRW/lipread_durations.csv
+  input_size: 96
+  max_time_masks: 15
+
+model:
+  name: dc-tcn
+  wav2vec:
+    path: ./LRW/vq-wav2vec_kmeans.pt
+    alignment: 4
+  dctcn:
+    modality: video
+    num_classes: 500
+    densetcn_options:
+      block_config: [3, 3, 3, 3]
+      growth_rate_set: [384, 384, 384, 384]
+      reduced_size: 512
+      kernel_size_set: [3, 5, 7]
+      dilation_size_set: [1, 2, 5]
+      squeeze_excitation: true
+      dropout: 0.2
+    backbone_type: resnet
+    relu_type: swish
+    width_mult: 1.0
+    use_boundary: true
+    extract_feats: false
+
+optim:
+  optimizer:
+    opt: adamw
+    betas: [0.9, 0.999]
+    eps: 1e-6
+    weight_decay: 1e-2
+  scheduler:
+    max_lr: 3e-4
+    pct_start: 0.0
+    anneal_strategy: cos
+    three_phase: false
+  mixup_alpha: 0.4
+  lambda_audio: 10.0
+
+train:
+  name: dc-tcn-resnet18-base-audio10
+  epochs: 80
+  batch_size: 96
+  accumulate_grad_batches: 1
+  gradient_clip_val: 0.0
+  gradient_checkpointing: false
+  validation_interval: 1.0
+  log_every_n_steps: 10
+  label_smoothing: 0.0
+
+evaluate:
+  ckpt_path: ./checkpoints/LRW-Checkpoints/dc-tcn-resnet18-base-audio10-fixmixup-WB-4GPU-BEST-epoch=75-step=96748.ckpt

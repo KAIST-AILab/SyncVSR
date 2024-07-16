@@ -1,27 +1,26 @@
-devices: [0, 1, 2, 3]
-
 data:
-  train: ./LRW/lipread_dataset/*/train/*.pkl
-  validation: ./LRW/lipread_dataset/*/val/*.pkl
-  test: ./LRW/lipread_dataset/*/test/*.pkl
-  label_directory: ./LRW/lipread_dataset
-  durations: ./LRW/lipread_durations.csv
+  train: ./LRW/dataset/*/train/*.pkl
+  validation: ./LRW/dataset/*/val/*.pkl
+  test: ./LRW/dataset/*/test/*.pkl
+  label_directory: ./LRW/dataset
+  durations: ./LRW/durations.csv
+  use_word_boundary: true
   input_size: 96
+  num_workers: 8
 
 model:
   name: transformer
   resnet: resnet18
   wav2vec:
     path: ./LRW/vq-wav2vec_kmeans.pt
-    alignment: 4
   bert:
     type: x-transformers
     num_tokens: 1
-    dim: 513
+    dim: 512
     depth: 12
     heads: 8
-    emb_dropout: 0.1
-    attn_dropout: 0.1
+    emb_dropout: 0.0
+    attn_dropout: 0.0
     layer_dropout: 0.2
     ff_dropout: 0.3
     use_rmsnorm: true
@@ -36,23 +35,26 @@ optim:
     eps: 1e-6
     weight_decay: 0.01
   scheduler:
-    name: linear
-    num_warmup_steps: 5000
-    num_training_steps: 100000
+    name: cosine
+    num_warmup_steps: 15000
+    num_training_steps: 270000
   lambda_audio: 10.0
 
 train:
-  name: x-transformers-resnet18-audio10
+  name: vq-transformer_lambda10_WB_bf16_rrc_TimeMaskFixed
   method: sync
   batch_size: 96
   accumulate_grad_batches: 1
   gradient_clip_val: 1.0
   gradient_checkpointing: false
   validation_interval: 1.0
-  log_every_n_steps: 10
+  log_every_n_steps: 1000
   label_smoothing: 0.0
   use_cutmix: true
-  kl_alpha: 1.0
+  precision: bf16
+  use_timemask: true
+  use_rrc: true
+  use_val_resize: false
 
 evaluate:
-  ckpt_path: ./checkpoints/transformer_lambda10_no_WB_9240.ckpt
+  ckpt_path: ./cross-modal-sync/i9umrm1x/checkpoints/epoch=167-step=213864.ckpt

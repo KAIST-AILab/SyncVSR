@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 import sys
 import warnings
 
@@ -24,7 +23,7 @@ def main(config: DictConfig):
     trainer = Trainer(
         accelerator="gpu",
         devices=config.devices,
-        precision=16,
+        precision=config.train.precision,
         amp_backend="native",
         strategy="ddp",
         log_every_n_steps=config.train.log_every_n_steps,

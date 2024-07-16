@@ -23,7 +23,7 @@ def main(config: DictConfig):
     trainer = Trainer(
         accelerator="gpu",
         devices="auto",
-        precision=16,
+        precision=config.train.precision,
         amp_backend="native",
         strategy="ddp",
         log_every_n_steps=config.train.log_every_n_steps,
@@ -41,7 +41,7 @@ def main(config: DictConfig):
 
     if config.model.name == 'dc-tcn' :
         trainer.fit(DCTCNLightningModule(config), train_dataloader, val_dataloader)
-    else :
+    else:
         trainer.fit(TransformerLightningModule(config), train_dataloader, val_dataloader)
     trainer.test(ckpt_path=checkpoint.best_model_path, dataloaders=[test_dataloader])
 

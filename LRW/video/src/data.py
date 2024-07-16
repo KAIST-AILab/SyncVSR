@@ -2,18 +2,61 @@ from __future__ import annotations
 
 import glob
 import os
-import multiprocessing
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-import torchvision.transforms as T
+import torchvision
 from omegaconf import DictConfig
 from dataclasses import dataclass
 from torch.utils.data import DataLoader, Dataset
 from turbojpeg import TJPF_GRAY, TurboJPEG
-from augment import *
+from augment import FunctionalModule, TimeMask
 
+
+@dataclass
+class LRWDatasetForTransformer(Dataset):
+    filenames: list[str]
+    labels: list[str]
+    transform: nn.Module | None = None
+    durations: pd.DataFrame = None
+    jpeg: TurboJPEG = TurboJPEG()
+    neural_audio_codec_sample_rate: int = 16000
+
+    def __len__(self) -> int:
+        return len(self.filenames)
+
+    def __getitem__(
+        self, index: int
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        data = torch.load(self.filenames[index])
+        label = self.filenames[index].split("/")[-3]
+        label = torch.tensor(self.labels.index(label), dtype=torch.int64)
+
+        # Video
+        video = [self.jpeg.decode(img, pixel_format=TJPF_GRAY) for img in data["video"]]
+        frame_length = len(video)
+        video = torch.as_tensor(np.stack(video)).permute(0, 3, 1, 2) # T x C x H x W
+        # video = 2 * video.float() / 0xFF - 1
+
+        if self.transform is not None:
+            video = self.transform(video)
+
+        # Audio
+        audio = data["audio"]
+        
+        # Word Boundary Information
+        if self.durations is not None: # LRW with wb
+            example_name = "/".join(self.filenames[index].split("/")[-2:])[:-4]
+            word_boundary = int(self.durations.loc[example_name].length)
+            start_index = (frame_length - word_boundary) // 2
+            end_index = start_index + word_boundary
+            word_mask = torch.zeros(frame_length, dtype=torch.long)
+            word_mask[start_index:end_index] = 1.0
+        else: # LRW without wb or LRW 1000
+            word_mask = torch.zeros(1)
+
+        return video.permute(1, 0, 2, 3), audio, label, word_mask
 
 @dataclass
 class LRWDatasetForDCTCN(Dataset):
@@ -86,116 +129,45 @@ class LRWDatasetForDCTCN(Dataset):
         batch["videos"] = batch["videos"].permute(1, 0, 2, 3)
         return batch
 
-
-@dataclass
-class LRWDatasetForTransformer(Dataset):
-    filenames: list[str]
-    labels: list[str]
-    transform: nn.Module | None = None
-    durations: pd.DataFrame = None
-    jpeg: TurboJPEG = TurboJPEG()
-
-    def __len__(self) -> int:
-        return len(self.filenames)
-
-    def __getitem__(
-        self, index: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        data = torch.load(self.filenames[index])
-        label = self.filenames[index].split("/")[-3]
-        label = torch.tensor(self.labels.index(label), dtype=torch.int64)
-
-        video = [self.jpeg.decode(img, pixel_format=TJPF_GRAY) for img in data["video"]]
-        frame_length = len(video)
-        video = torch.as_tensor(np.stack(video)).permute(0, 3, 1, 2)
-        # video = 2 * video.float() / 0xFF - 1
-
-        video = video.permute(1, 0, 2, 3)
-        if self.transform is not None:
-            video_array = video[0].numpy()
-            video_array = self.transform(video_array)
-            video = torch.tensor(video_array, dtype=torch.float).unsqueeze(0)
-
-        # Word Boundary Information
-        example_name = "/".join(self.filenames[index].split("/")[-2:])[:-4]
-        word_boundary = int(self.durations.loc[example_name].length)
-        start_index = (frame_length - word_boundary) // 2
-        end_index = start_index + word_boundary
-        word_mask = torch.zeros(frame_length, dtype=torch.long)
-        word_mask[start_index:end_index] = 1.0
-
-        return video, data["audio"], label, word_mask
-
-
 def create_dataloaders(config: DictConfig) -> tuple[DataLoader, DataLoader, DataLoader]:
-
     labels = sorted(os.listdir(config.data.label_directory))
-    durations = pd.read_csv(config.data.durations, index_col="id")
+    if config.data.use_word_boundary:
+        durations = pd.read_csv(config.data.durations, index_col="id")
+    else:
+        durations = None
 
-    crop_size = (88, 88)
+    num_workers = config.data.num_workers
+    crop_size = (config.data.input_size, config.data.input_size)
     (mean, std) = (0.421, 0.165)
 
-    if config.model.name == "transformer" :
+    # define transforms
+    train_transforms = torch.nn.Sequential(
+        FunctionalModule(lambda x: x / 255.0),
+        torchvision.transforms.RandomHorizontalFlip(p=0.5),
+        torchvision.transforms.RandomResizedCrop(size=crop_size, scale=(0.6, 1.0)) if config.train.use_rrc else nn.Identity(),
+        torchvision.transforms.Grayscale(),
+        TimeMask(T=0.6 * 25, n_mask=1) if config.train.use_timemask else nn.Identity(),
+        torchvision.transforms.Normalize(mean, std),
+    )
+    print(train_transforms)
 
-        train_transforms = Compose(
-            [
-                Normalize(0.0, 255.0),
-                RandomCrop(crop_size),
-                HorizontalFlip(0.5),
-                Normalize(mean, std),
-                TimeMask(T=0.6 * 25, n_mask=1),
-            ]
-        )
-        val_test_transforms = Compose(
-            [Normalize(0.0, 255.0), CenterCrop(crop_size), Normalize(mean, std)]
-        )
-    else :
-        train_transforms = [
-            T.RandomCrop(config.data.input_size),
-            T.RandomHorizontalFlip(),
-        ]
-        train_transforms = T.Compose(train_transforms)
-        val_test_transform = T.CenterCrop(config.data.input_size)
+    val_test_transforms = torch.nn.Sequential(
+        FunctionalModule(lambda x: x / 255.0),
+        torchvision.transforms.Resize(crop_size) if config.train.use_val_resize else torchvision.transforms.CenterCrop(crop_size),
+        torchvision.transforms.Grayscale(),
+        torchvision.transforms.Normalize(mean, std),
+    )
 
     if config.model.name == "transformer":
-        train_dataset = LRWDatasetForTransformer(
-            glob.glob(config.data.train), labels, train_transforms, durations
-        )
-        validation_dataset = LRWDatasetForTransformer(
-            glob.glob(config.data.validation), labels, val_test_transforms, durations
-        )
-        test_dataset = LRWDatasetForTransformer(
-            glob.glob(config.data.test), labels, val_test_transforms, durations
-        )
+        train_dataset = LRWDatasetForTransformer(glob.glob(config.data.train), labels, train_transforms, durations)
+        validation_dataset = LRWDatasetForTransformer(glob.glob(config.data.validation), labels, val_test_transforms, durations)
+        test_dataset = LRWDatasetForTransformer(glob.glob(config.data.test), labels, val_test_transforms, durations)
     elif config.model.name == "dc-tcn":
-        train_dataset = LRWDatasetForDCTCN(
-            glob.glob(config.data.train),
-            labels,
-            train_transforms,
-            durations,
-            config.data.max_time_masks,
-            validation=False,
-        )
-        validation_dataset = LRWDatasetForDCTCN(
-            glob.glob(config.data.validation),
-            labels,
-            val_test_transforms,
-            durations,
-            config.data.max_time_masks,
-            validation=True,
-        )
-        test_dataset = LRWDatasetForDCTCN(
-            glob.glob(config.data.test),
-            labels,
-            val_test_transforms,
-            durations,
-            config.data.max_time_masks,
-            validation=True,
-        )
+        train_dataset = LRWDatasetForDCTCN(glob.glob(config.data.train), labels, train_transforms, durations, config.data.max_time_masks, validation=False,)
+        validation_dataset = LRWDatasetForDCTCN(glob.glob(config.data.validation), labels, val_test_transforms, durations, config.data.max_time_masks, validation=True,)
+        test_dataset = LRWDatasetForDCTCN( glob.glob(config.data.test), labels, val_test_transforms, durations, config.data.max_time_masks, validation=True,)
     else:
         raise NotImplementedError("Not valid model name")
-
-    num_workers = multiprocessing.cpu_count() // 4
 
     train_dataloader = DataLoader(
         train_dataset,

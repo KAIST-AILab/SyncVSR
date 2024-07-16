@@ -1,4 +1,4 @@
-# Copyright 2023 Jungwoo Park
+# Copyright 2023 Jungwoo Park and Young Jin Ahn
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ class TrainModule(nn.Module):
     audio_alignment: int = 4
     vq_groups: int = 2
     audio_vocab_size: int = 320
-    cmts_lambda: float = 1.0
+    sync_lambda: float = 1.0
     use_word_boundary: bool = False
 
     def setup(self):
@@ -68,7 +68,7 @@ class TrainModule(nn.Module):
         
         loss_pooling = optax.softmax_cross_entropy(logits_pooling, labels).mean()
 
-        # get CMTS auxiliary loss
+        # get sync auxiliary loss
         logits_audio = self.audio_classifier(seq_outputs) # [B, seq_len, dim]
         logits_audio = logits_audio.reshape((B, seq_len, self.audio_alignment * self.vq_groups, self.audio_vocab_size))
         loss_audio = optax.softmax_cross_entropy_with_integer_labels(
@@ -76,7 +76,7 @@ class TrainModule(nn.Module):
             audio_tokens.flatten(),
         ).mean()
 
-        loss = loss_pooling + self.cmts_lambda * loss_audio
+        loss = loss_pooling + self.sync_lambda * loss_audio
 
         labels = jnp.argmax(labels, axis=-1)
         acc1 = (jnp.argmax(logits_pooling, axis=-1) == labels).mean()
@@ -143,7 +143,7 @@ def create_train_state(args: argparse.Namespace, steps_per_epoch: int) -> TrainS
         audio_alignment=args.audio_alignment,
         vq_groups=args.vq_groups,
         audio_vocab_size=args.audio_vocab_size,
-        cmts_lambda=args.cmts_lambda,
+        sync_lambda=args.sync_lambda,
         use_word_boundary=args.use_word_boundary,
     )
 

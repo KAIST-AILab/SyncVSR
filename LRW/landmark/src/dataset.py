@@ -61,8 +61,8 @@ def create_dataloaders(
     valid_filenames = glob.glob(os.path.join(args.dataset_path, "*/val/*.npy"))
     test_filenames = glob.glob(os.path.join(args.dataset_path, "*/test/*.npy"))
 
-    train_transform = create_transform("finetune", max_length=args.input_length)
-    valid_transform = create_transform("none", max_length=args.input_length)
+    train_transform = create_transform("train", max_length=args.input_length)
+    valid_transform = create_transform("valid", max_length=args.input_length)
 
     if args.use_word_boundary:
         train_dataset = LRWDataset(train_filenames, categories, train_transform, durations)

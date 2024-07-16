@@ -313,26 +313,14 @@ class FeatureMask(Transform):
 
 
 def create_transform(augmentation: str, max_length: int) -> Transform:
-    if augmentation == "none":
+    if augmentation == "valid":
         return Sequential(
             Normalize(),
             CenterCrop(max_length),
             Pad(max_length),
         )
-    elif augmentation == "pretrain":
-        return Sequential(
-            Normalize(),
-            RandomResample(limit=(0.5, 2.0)),
-            RandomCrop(max_length),
-            HorizontalFlip(p=0.5),
-            RandomInterpolatedRotation(0.2, np.pi / 4, p=0.5),
-            RandomShear(limit=0.2),
-            RandomScale(limit=0.2),
-            RandomShift(stdev=0.2),
-            CoordinateJitter(stdev=0.005, p=0.5),
-            Pad(max_length),
-        )
-    elif augmentation == "finetune":
+    
+    elif augmentation == "train":
         return Sequential(
             Normalize(),
             RandomResample(limit=0.3, p=0.5),
@@ -346,21 +334,5 @@ def create_transform(augmentation: str, max_length: int) -> Transform:
             RandomShear(limit=0.2),
             RandomScale(limit=0.2),
             RandomShift(stdev=0.1),
-            Pad(max_length),
-        )
-        return Sequential(
-            Normalize(),
-            RandomResample(limit=(0.5, 2.0)),
-            RandomCrop(max_length),
-            HorizontalFlip(p=0.5),
-            TimeFlip(p=0.5),
-            FrameBlockMask(ratio=0.1, block_size=3, p=0.5),
-            FrameNoise(ratio=0.1, noise_stdev=0.3, p=0.5),
-            FeatureMask(ratio=0.1, p=0.5),
-            RandomInterpolatedRotation(0.2, np.pi / 4, p=0.5),
-            RandomShear(limit=0.2),
-            RandomScale(limit=0.2),
-            RandomShift(stdev=0.2),
-            CoordinateJitter(stdev=0.005, p=0.5),
             Pad(max_length),
         )

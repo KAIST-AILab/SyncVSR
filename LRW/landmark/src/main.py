@@ -100,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--audio-alignment", type=int, default=4)
     parser.add_argument("--vq-groups", type=int, default=2)
     parser.add_argument("--audio-vocab-size", type=int, default=320)
-    parser.add_argument("--cmts-lambda", type=float, default=1.0)
+    parser.add_argument("--sync-lambda", type=float, default=1.0)
 
     parser.add_argument("--layers", type=int, default=12)
     parser.add_argument("--dim", type=int, default=768)

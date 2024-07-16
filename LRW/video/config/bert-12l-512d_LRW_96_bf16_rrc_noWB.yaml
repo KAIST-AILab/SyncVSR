@@ -1,9 +1,9 @@
 data:
-  train: ./LRW/dataset/*/train/*.pkl
-  validation: ./LRW/dataset/*/val/*.pkl
-  test: ./LRW/dataset/*/test/*.pkl
-  label_directory: ./LRW/dataset
-  durations: ./LRW/durations.csv
+  train: ./dataset/*/train/*.pkl
+  validation: ./dataset/*/val/*.pkl
+  test: ./dataset/*/test/*.pkl
+  label_directory: ./dataset
+  durations: ./durations.csv
   use_word_boundary: true
   input_size: 96
   num_workers: 8
@@ -12,7 +12,7 @@ model:
   name: transformer
   resnet: resnet18
   wav2vec:
-    path: ./LRW/vq-wav2vec_kmeans.pt
+    path: ./vq-wav2vec_kmeans.pt
   bert:
     type: x-transformers
     num_tokens: 1

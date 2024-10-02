@@ -1,0 +1,104 @@
+batch_size: 16
+train_name: "LRS2_lambda10"
+checkpoint:
+  save_top_k: 10
+data:
+  modality: video
+  use_audio_normalise: False
+  max_frames: 1800
+  max_frames_val: 500
+  language: english
+dataset: LRS2
+logger: cassini
+model:
+  visual_backbone:
+    audio_weight: 10.0
+    adim: 768
+    aheads: 12
+    eunits: 3072
+    elayers: 12
+    transformer_input_layer: conv3d
+    dropout_rate: 0.1
+    transformer_attn_dropout_rate: 0.1
+    transformer_encoder_attn_layer_type: rel_mha
+    macaron_style: True
+    use_cnn_module: True
+    cnn_module_kernel: 31
+    zero_triu: False
+    a_upsample_ratio: 1
+    relu_type: swish
+    ddim: 768
+    dheads: 12
+    dunits: 3072
+    dlayers: 6
+    lsm_weight: 0.1
+    transformer_length_normalized_loss: False
+    mtlalpha: 0.1
+    ctc_type: builtin
+    rel_pos_type: latest
+    codec: vq
+  audio_backbone:
+    adim: 768
+    aheads: 12
+    eunits: 3072
+    elayers: 12
+    transformer_input_layer: conv1d
+    dropout_rate: 0.1
+    transformer_attn_dropout_rate: 0.1
+    transformer_encoder_attn_layer_type: rel_mha
+    macaron_style: True
+    use_cnn_module: True
+    cnn_module_kernel: 31
+    zero_triu: False
+    a_upsample_ratio: 1
+    relu_type: swish
+    ddim: 768
+    dheads: 12
+    dunits: 3072
+    dlayers: 6
+    lsm_weight: 0.1
+    transformer_length_normalized_loss: False
+    mtlalpha: 0.1
+    ctc_type: builtin
+    rel_pos_type: latest
+  language_model:
+    pos_enc: none
+    embed_unit: 128 
+    att_unit: 512
+    head: 8
+    unit: 2048
+    layer: 16
+    dropout_rate: 0.0 
+optimizer:
+  lr: 1e-3
+  betas: [0.9, 0.999]
+  eps: 1e-6
+  weight_decay: 0.03
+scheduler:
+  name: cosine
+  num_warmup_steps : 15000
+  num_training_steps: 450000
+decode:
+  snr_target: 999999
+num_workers: 8
+gpus: 4
+slurm_job_id: 1
+train: True
+log_wandb: True
+infer_path: 1
+ckpt_path: /home/work/inter_speech/sync_auto_avsr/dctcn_lambda10_no_WB_Libri.ckpt
+transfer_frontend: true
+trainer:
+  precision: bf16
+  num_nodes: 1
+  gpus: -1
+  sync_batchnorm: True
+  default_root_dir: ./exp_dir
+  num_sanity_val_steps: 0
+  limit_val_batches: 1.0
+  accumulate_grad_batches: 1
+  gradient_clip_val: 5.0
+  replace_sampler_ddp: False
+  resume_from_checkpoint:
+exp_dir: ./cross-modal-sync
+exp_name: test

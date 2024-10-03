@@ -16,9 +16,11 @@ Visual Speech Recognition (VSR) stands at the intersection of computer vision an
 
 **Frame-level crossmodal supervision with quantized audio tokens for enhanced Visual Speech Recognition.**
 
-|                   Overview of SyncVSR                    |            Performance of SyncVSR on LRS3             |
-| :------------------------------------------------------: | :---------------------------------------------------: |
-| <img width="300" alt="image" src="https://github.com/snoop2head/portfolio/blob/master/images/SyncVSR.png?raw=true"> | <img width="440" alt="image" src="https://github.com/snoop2head/portfolio/blob/master/images/LRS3.png?raw=true"> |
+|                     Overview of SyncVSR                      |                Performance of SyncVSR on LRS3                |
+| :----------------------------------------------------------: | :----------------------------------------------------------: |
+| <img width="300" alt="image" src="./others/SyncVSR.png?raw=true"> | <img width="440" alt="image" src="./others/LRS3.png?raw=true"> |
+
+
 
 ```python3
 class Model(nn.Module):
@@ -54,8 +56,59 @@ class Model(nn.Module):
         ...
 ```
 
+### Audio Tokens Preparation
+
+**We uploaded tokenized audio for LRW, LRS2, LRS3 at the [release section](https://github.com/KAIST-AILab/SyncVSR/releases/).** Without installing the fairseq environment, you may load the tokenized audio from the files as below:
+
+```bash
+# download from the release section below
+# https://github.com/KAIST-AILab/SyncVSR/releases/
+
+# and untar the folder.
+tar -xf audio-tokens.tar.gz
+```
+
+```python3
+""" access to the tokenized audio files """
+import os
+from glob import glob
+
+benchname = "LRW" # or LRS2, LRS3
+split = "train"
+dataset_path = os.path.join("./data/audio-tokens", benchname)
+audio_files = glob(os.path.join(dataset_path, "**", split, "*.pkl"))
+
+""" load the dataset """
+import random
+import torch
+
+tokenized_audio_sample = torch.load(random.choice(audio_files)) # dictionary type
+tokenized_audio_sample.keys() # 'vq_tokens', 'wav2vec2_tokens'
+```
+
+### Video Dataset Preparation
+
+1. Get authentification for Lip Reading in the Wild Dataset via https://www.bbc.co.uk/rd/projects/lip-reading-datasets
+2. Download dataset using the shell command below
+
+```shell
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partaa
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partab
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partac
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partad
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partae
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partaf
+wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partag
+```
+3. Extract region of interest and convert mp4 file into pkl file with the commands below.
+```shell
+python ./src/preprocess_roi.py
+python ./src/preprocess_pkl.py
+```
+
+
 ### Installation
-For the replicating state-of-the-art results, please follow the instructions below.
+For the replicating state-of-the-art results from the scratch, please follow the instructions below.
 ```shell
 # install depedency through apt-get
 apt-get update 
@@ -80,38 +133,16 @@ pip install -r requirements.txt
 wget https://dl.fbaipublicfiles.com/fairseq/wav2vec/vq-wav2vec_kmeans.pt -P ./
 ```
 
-### Dataset Preparation
-
-1. Get authentification for Lip Reading in the Wild Dataset via https://www.bbc.co.uk/rd/projects/lip-reading-datasets
-2. Download dataset using the shell command below
-
-```shell
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partaa
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partab
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partac
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partad
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partae
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partaf
-wget --user <USERNAME> --password <PASSWORD> https://thor.robots.ox.ac.uk/~vgg/data/lip_reading/data1/lrw-v1-partag
-```
-3. Extract region of interest and convert mp4 file into pkl file with the commands below.
-```shell
-python ./src/preprocess_roi.py
-python ./src/preprocess_pkl.py
-```
-
 ### Train
 
 For training with our methodology, please run the command below after preprocessing the dataset. You may change configurations in yaml files.
 ```shell
 python ./src/train.py ./config/bert-12l-512d.yaml devices=[0] # Transformer backbone
-python ./src/train.py ./config/dc-tcn-base.yaml devices=[0] # DC-TCN backbone
 ```
 
 ### Inference
 
-For inference, please download the pretrained checkpoint from the repository's [release section](https://github.com/KAIST-AILab/SyncVSR/releases/)(or from url attached on the table above) and run the code with the following command.
+For inference, please download the pretrained checkpoint from the repository's [release section](https://github.com/KAIST-AILab/SyncVSR/releases/) and run the code with the following command.
 ```shell
 python ./src/inference.py ./config/bert-12l-512d.yaml devices=[0] # Transformer backbone
-python ./src/inference.py ./config/dc-tcn-base.yaml devices=[0] # DC-TCN backbone
 ```

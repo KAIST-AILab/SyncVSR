@@ -39,7 +39,8 @@ class Model(nn.Module):
         # Get traditional VSR objective loss such as Word classification loss, CTC loss, and LM loss
         loss_objective = ...
 
-        # get latent of the encoder from input video frames
+        # Obtain the latent representation from the encoder for input video frames of length seq_len
+        # with a special token inserted at the start.
         last_hidden_state = self.encoder(videos) # [B, seq_len+1, hidden_size]
 
         # Get audio reconstruction loss
@@ -145,4 +146,17 @@ python ./src/train.py ./config/bert-12l-512d.yaml devices=[0] # Transformer back
 For inference, please download the pretrained checkpoint from the repository's [release section](https://github.com/KAIST-AILab/SyncVSR/releases/) and run the code with the following command.
 ```shell
 python ./src/inference.py ./config/bert-12l-512d.yaml devices=[0] # Transformer backbone
+```
+
+### Acknowledgement
+
+Thanks to the [TPU Research Cloud](https://sites.research.google/trc/about/) program for providing resources. Models are trained on the TPU `v4-64` or TPU `v4-32` pod slice.
+
+```
+@inproceedings{ma2023auto,
+  author={Ma, Pingchuan and Haliassos, Alexandros and Fernandez-Lopez, Adriana and Chen, Honglie and Petridis, Stavros and Pantic, Maja},
+  booktitle={IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  title={Auto-AVSR: Audio-Visual Speech Recognition with Automatic Labels}, 
+  year={2023},
+}
 ```

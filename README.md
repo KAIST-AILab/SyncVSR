@@ -107,6 +107,71 @@ python ./src/preprocess_roi.py
 python ./src/preprocess_pkl.py
 ```
 
+### Repository Structure
+
+`LRS` is for sentence-level lipreading and `LRW` is for word-level lipreading. In each of the tasks, the repository is organized into two main directories: `config` and `src`.
+
+- The `config` directory contains the configurations for training and inference on the benchmarks we evaluated.
+- The `src` directory holds the source code for modeling, preprocessing, data pipelining, and training.
+
+```
+$ tree
+.
+├── LRS
+│   └── video
+│       ├── config
+│       │   ├── lrs2.yaml
+│       │   └── lrs3.yaml
+│       └── src
+│           ├── datamodule
+│           │   ├── av_dataset.py
+│           │   ├── data_module.py
+│           │   └── transforms.py
+│           ├── espnet
+│           ├── lightning.py
+│           ├── main.py
+│           ├── preprocess
+│           │   ├── prepare_LRS2.py
+│           │   ├── prepare_LRS3.py
+│           │   ├── prepare_Vox2.py
+│           │   ├── transcribe_whisper.py
+│           │   └── utils.py
+│           └── spm
+│
+├── LRW
+│   ├── landmark
+│   │   ├── README.md
+│   │   ├── config
+│   │   │   ├── transformer-8l-320d-1000ep-cmts10-lb0-wb.sh
+│   │   │   ├── transformer-8l-320d-1000ep-cmts10-lb0.sh
+│   │   │   └── ...
+│   │   ├── durations.csv
+│   │   ├── requirements.txt
+│   │   └── src
+│   │       ├── dataset.py
+│   │       ├── main.py
+│   │       ├── modeling.py
+│   │       ├── training.py
+│   │       ├── transform.py
+│   │       └── utils.py
+│   └── video
+│       ├── config
+│       │   ├── bert-12l-512d_LRW_96_bf16_rrc_WB.yaml
+│       │   ├── bert-12l-512d_LRW_96_bf16_rrc_noWB.yaml
+│       │   └── dc-tcn-base.yaml
+│       ├── durations.csv
+│       ├── labels.txt
+│       ├── requirements.txt
+│       └── src
+│           ├── augment.py
+│           ├── data.py
+│           ├── inference.py
+│           ├── lightning.py
+│           ├── preprocess_pkl.py
+│           ├── preprocess_roi.py
+│           ├── tcn
+│           └── train.py
+```
 
 ### Installation
 For the replicating state-of-the-art results from the scratch, please follow the instructions below.

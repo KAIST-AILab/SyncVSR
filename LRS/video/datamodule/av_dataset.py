@@ -5,8 +5,8 @@ import torch
 import torchvision
 from turbojpeg import TJPF_GRAY, TurboJPEG
 
-from ..preprocess.utils import pydub_to_np
-from transforms import TextTransform, FunctionalModule
+from preprocess.utils import pydub_to_np
+from .transforms import TextTransform, FunctionalModule
 
 
 class AVDataset(torch.utils.data.Dataset):
@@ -40,7 +40,7 @@ class AVDataset(torch.utils.data.Dataset):
             torchvision.transforms.Normalize(0.421, 0.165),
         )
 
-        self.length = np.load("video_length.npy")
+        self.length = np.load("./datamodule/video_length.npy")
         self.length_distribution = np.bincount(self.length)
         self.cut = self.length.max()
         self.tokenizer = TextTransform(

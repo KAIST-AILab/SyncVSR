@@ -36,7 +36,7 @@ model:
     mtlalpha: 0.1
     ctc_type: builtin
     rel_pos_type: latest
-    codec: vq
+    codec: # Leave it empty if you want to run inference only. For training, you can set it as "wav2vec2" or "vq". We used vq for reporting results in our paper. But to avoid using fairseq, we recommend to use wav2vec2.
   audio_backbone:
     adim: 768
     aheads: 12
@@ -81,13 +81,13 @@ scheduler:
 decode:
   snr_target: 999999
 num_workers: 8
-gpus: 4
+gpus: -1
 slurm_job_id: 1
-train: True
+train: False
 log_wandb: True
 infer_path: 1
-ckpt_path: /home/work/inter_speech/sync_auto_avsr/dctcn_lambda10_no_WB_Libri.ckpt
-transfer_frontend: true
+ckpt_path:
+transfer_frontend: False
 trainer:
   precision: bf16
   num_nodes: 1
@@ -99,6 +99,6 @@ trainer:
   accumulate_grad_batches: 1
   gradient_clip_val: 5.0
   replace_sampler_ddp: False
-  resume_from_checkpoint:
+  resume_from_checkpoint: ./Vox+LRS2+LRS3.ckpt # Please refer to checkpoints uploaded at: https://github.com/KAIST-AILab/SyncVSR/releases/download/weight-audio-v1/Vox+LRS2+LRS3.ckpt
 exp_dir: ./cross-modal-sync
 exp_name: test

@@ -5,13 +5,12 @@ import sys
 
 import torch
 from omegaconf import DictConfig, OmegaConf
-from avg_ckpts import ensemble
 from datamodule.data_module import DataModule
 from lightning import ModelModule
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-
+from utils import check_availability
 
 # Set environment variables and logger level
 os.environ["WANDB_SILENT"] = "true"
@@ -55,7 +54,7 @@ def main(cfg):
         trainer.test(ckpt_path=checkpoint.best_model_path, datamodule=datamodule)
         shutil.copy(checkpoint.best_model_path, f"./{cfg.train_name}.ckpt")
     else:
-        modelmodule = modelmodule.load_from_checkpoint(cfg.trainer.resume_from_checkpoint, cfg=cfg)
+        modelmodule = modelmodule.load_from_checkpoint(cfg.trainer.resume_from_checkpoint, cfg=cfg, strict=check_availability("fairseq")) # strict=False can be done if you were 
         trainer.test(model=modelmodule, datamodule=datamodule)
 
 

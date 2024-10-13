@@ -32,10 +32,13 @@ from espnet.nets.pytorch_backend.transformer.label_smoothing_loss import (
 from espnet.nets.pytorch_backend.transformer.mask import target_mask
 from espnet.nets.scorers.ctc import CTCPrefixScorer
 
-from fairseq.checkpoint_utils import load_model_ensemble
+from utils import check_availability
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import Wav2Vec2ForPreTraining
+
+if check_availability("fairseq"):
+    from fairseq.checkpoint_utils import load_model_ensemble
 
 class E2E(torch.nn.Module):
     @property
@@ -129,8 +132,10 @@ class E2E(torch.nn.Module):
             self.ctc = None
 
         # Cross Modal Sync Related
-        if args.codec == None or "vq" in args.codec.lower():
-            wav2vec, metadata = load_model_ensemble(["/home/work/inter_speech/sync_auto_avsr/vq-wav2vec_kmeans.pt"])
+        if args.codec is None:
+            self.codec = None
+        elif "vq" in args.codec.lower() and check_availability("fairseq"):
+            wav2vec, metadata = load_model_ensemble(["./vq-wav2vec_kmeans.pt"])
             self.wav2vec = wav2vec[0].requires_grad_(False).eval()
             self.audio_alignment = 4
             self.audio_vocab_size = metadata.model.vq_vars # 320
@@ -138,6 +143,8 @@ class E2E(torch.nn.Module):
             self.audio_weight = args.audio_weight
             self.codec = "vq"
         elif "wav2vec2" in args.codec.lower():
+            # facebook/wav2vec2-large-xlsr-53 is multilingual neural audio quantizer. 
+            # We used facebook/wav2vec2-large-960h for English and kehanlu/mandarin-wav2vec2 for Mandarin.
             wav2vec = Wav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-large-xlsr-53")
             del wav2vec.wav2vec2.encoder # remove transformer encoder blocks
             wav2vec = wav2vec.requires_grad_(False).eval()
@@ -150,7 +157,12 @@ class E2E(torch.nn.Module):
             self.audio_classifier = nn.Linear(768, self.audio_alignment * 2 * self.audio_vocab_size)
             self.audio_weight = args.audio_weight
             self.codec = "wav2vec2"
-        print(f"using {self.codec} neural audio codec")
+        
+        if self.codec is not None:
+            print(f"using {self.codec} neural audio codec")
+        else:
+            print("Inference purpose only, not using codec")
+            print("To train with our method, you should set codec as 'wav2vec2' or 'vq'")
         
     def forward_audios(self, audios: torch.Tensor) -> torch.Tensor:
         # add extra 640 padding for audios to prevent mismatch error. Extra margin will be truncated later
@@ -178,15 +190,18 @@ class E2E(torch.nn.Module):
 
         x, _ = self.encoder(x, padding_mask) # x: batch x seq_len(164) x dim 
 
-        # audio loss
-        audio_tokens = self.forward_audios(audios.permute(1,0,2).squeeze(0))
-        audio_tokens = audio_tokens[:, : x.size(1) * self.audio_alignment]
+        if self.codec is not None:
+            # audio loss
+            audio_tokens = self.forward_audios(audios.permute(1,0,2).squeeze(0))
+            audio_tokens = audio_tokens[:, : x.size(1) * self.audio_alignment]
 
-        logits_audio = self.audio_classifier(x)
-        logits_audio = logits_audio.float() # converting into float type before the loss calculation
-        logits_audio = logits_audio.unflatten(2, (-1, self.audio_vocab_size))
-        loss_audio = F.cross_entropy(logits_audio.flatten(0, 2),audio_tokens.flatten())
-
+            logits_audio = self.audio_classifier(x)
+            logits_audio = logits_audio.float() # converting into float type before the loss calculation
+            logits_audio = logits_audio.unflatten(2, (-1, self.audio_vocab_size))
+            loss_audio = F.cross_entropy(logits_audio.flatten(0, 2),audio_tokens.flatten())
+        else:
+            loss_audio = None
+        
         # ctc loss
         if self.mtlalpha > 0.0:
             loss_ctc, ys_hat = self.ctc(x.float(), lengths, label)
@@ -201,7 +216,9 @@ class E2E(torch.nn.Module):
         pred_pad, _ = self.decoder(ys_in_pad, ys_mask, x, padding_mask)
         loss_att = self.criterion(pred_pad.float(), ys_out_pad)
         loss = self.mtlalpha * loss_ctc + (1 - self.mtlalpha) * loss_att
-        loss = loss + loss_audio * self.audio_weight
+        
+        if self.codec is not None:
+            loss = loss + loss_audio * self.audio_weight
 
         acc = th_accuracy(
             pred_pad.view(-1, self.odim), ys_out_pad, ignore_label=self.ignore_id

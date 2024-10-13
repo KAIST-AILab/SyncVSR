@@ -5,8 +5,8 @@ import pandas as pd
 import torch
 from pytorch_lightning import LightningDataModule
 
-from av_dataset import AVDataset
-from transforms import VideoTransform
+from datamodule.av_dataset import AVDataset
+from .transforms import VideoTransform
 from glob import glob
 
 def pad(samples, pad_val=0.0):

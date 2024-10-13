@@ -12,6 +12,7 @@ from espnet.nets.lm_interface import dynamic_import_lm
 from espnet.nets.pytorch_backend.e2e_asr_transformer import E2E
 from espnet.nets.scorers.length_bonus import LengthBonus
 from pytorch_lightning import LightningModule
+from utils import check_availability
 
 def compute_word_level_distance(seq1, seq2):
     return torchaudio.functional.edit_distance(
@@ -199,12 +200,13 @@ class ModelModule(LightningModule):
                 batch_size=batch_size,
                 sync_dist=True
             )
-            self.log(
-                "loss_audio_val", 
-                loss_audio, 
-                batch_size=batch_size,
-                sync_dist=True
-            )
+            if check_availability("fairseq"):
+                self.log(
+                    "loss_audio_val", 
+                    loss_audio, 
+                    batch_size=batch_size,
+                    sync_dist=True
+                )
 
         if step_type == "train":
             self.log(

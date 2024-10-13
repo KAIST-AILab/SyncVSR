@@ -1,6 +1,6 @@
 # SyncVSR
 
-### [SyncVSR: Data-Efficient Visual Speech Recognition with End-to-End Crossmodal Audio Token Synchronization (Interspeech 2024)](https://arxiv.org/abs/2406.12233)
+### <a href="https://www.isca-archive.org/interspeech_2024/ahn24_interspeech.pdf" target="_blank">SyncVSR: Data-Efficient Visual Speech Recognition with End-to-End Crossmodal Audio Token Synchronization (Interspeech 2024)</a>
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/syncvsr-data-efficient-visual-speech/lipreading-on-lip-reading-in-the-wild)](https://paperswithcode.com/sota/lipreading-on-lip-reading-in-the-wild?p=syncvsr-data-efficient-visual-speech)  
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/syncvsr-data-efficient-visual-speech/lipreading-on-lrw-1000)](https://paperswithcode.com/sota/lipreading-on-lrw-1000?p=syncvsr-data-efficient-visual-speech)  
@@ -227,12 +227,15 @@ python main.py config/lrs3.yaml # evaluating on lrs3
 ### Train
 
 **Word-Level VSR**
+
 After preprocessing the dataset using [preprocess_roi.py](https://github.com/KAIST-AILab/SyncVSR/blob/main/LRW/video/src/preprocess_roi.py) and [preprocess_pkl.py](https://github.com/KAIST-AILab/SyncVSR/blob/main/LRW/video/src/preprocess_pkl.py), please change configurations in yaml files in [LRW/video/config](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRW/video/config).
+
 ```shell
 python ./src/train.py ./config/bert-12l-512d_LRW_96_bf16_rrc_WB.yaml devices=[0]
 ```
 
 **Sentence-Level VSR**
+
 After preprocessing the dataset using [LRS/video/preprocess](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRS/video/preprocess), please change configurations in yaml files in [LRS/video/config](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRS/video/config).
 
 ```shell
@@ -243,7 +246,7 @@ python main.py config/lrs3.yaml
 
 ### Acknowledgement
 
-Thanks to the [TPU Research Cloud](https://sites.research.google/trc/about/) program for providing resources. Models are trained on the TPU `v4-64` or TPU `v4-32` pod slice.
+Thanks to the [TPU Research Cloud](https://sites.research.google/trc/about/) program for providing resources. Models are trained on the TPU `v4-64` or TPU `v3-8` pod slice.
 
 ```
 @inproceedings{ma2023auto,

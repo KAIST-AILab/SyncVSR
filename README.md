@@ -248,11 +248,16 @@ python main.py config/lrs3.yaml
 
 Thanks to the [TPU Research Cloud](https://sites.research.google/trc/about/) program for providing resources. Models are trained on the TPU `v4-64` or TPU `v3-8` pod slice.
 
+
+### Citation
+If you find SyncVSR useful for your research, please consider citing our paper:
+
 ```
-@inproceedings{ma2023auto,
-  author={Ma, Pingchuan and Haliassos, Alexandros and Fernandez-Lopez, Adriana and Chen, Honglie and Petridis, Stavros and Pantic, Maja},
-  booktitle={IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
-  title={Auto-AVSR: Audio-Visual Speech Recognition with Automatic Labels}, 
-  year={2023},
+@inproceedings{ahn2024syncvsr,
+  author={Young Jin Ahn, Jungwoo Park, Sangha Park, Jonghyun Choi, Kee-Eung Kim},
+  title={SyncVSR: Data-Efficient Visual Speech Recognition with End-to-End Crossmodal Audio Token Synchronization},
+  year={2024},
+  booktitle={Proc. Interspeech 2024},
+  doi={10.21437/Interspeech.2024-432}
 }
 ```

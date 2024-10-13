@@ -118,26 +118,28 @@ python ./src/preprocess_pkl.py
 $ tree
 .
 ├── LRS
+│   ├── landmark
 │   └── video
 │       ├── config
 │       │   ├── lrs2.yaml
 │       │   └── lrs3.yaml
-│       └── src
-│           ├── datamodule
-│           │   ├── av_dataset.py
-│           │   ├── data_module.py
-│           │   └── transforms.py
-│           ├── espnet
-│           ├── lightning.py
-│           ├── main.py
-│           ├── preprocess
-│           │   ├── prepare_LRS2.py
-│           │   ├── prepare_LRS3.py
-│           │   ├── prepare_Vox2.py
-│           │   ├── transcribe_whisper.py
-│           │   └── utils.py
-│           └── spm
-│
+│       ├── datamodule
+│       │   ├── av_dataset.py
+│       │   ├── data_module.py
+│       │   ├── transforms.py
+│       │   └── video_length.npy
+│       ├── espnet
+│       ├── lightning.py
+│       ├── main.py
+│       ├── preprocess
+│       │   ├── prepare_LRS2.py
+│       │   ├── prepare_LRS3.py
+│       │   ├── prepare_Vox2.py
+│       │   ├── transcribe_whisper.py
+│       │   └── utils.py
+│       ├── setup.sh
+│       ├── spm
+│       └── utils.py
 ├── LRW
 │   ├── landmark
 │   │   ├── README.md
@@ -146,7 +148,7 @@ $ tree
 │   │   │   ├── transformer-8l-320d-1000ep-cmts10-lb0.sh
 │   │   │   └── ...
 │   │   ├── durations.csv
-│   │   ├── requirements.txt
+│   │   ├── setup.sh
 │   │   └── src
 │   │       ├── dataset.py
 │   │       ├── main.py
@@ -161,7 +163,7 @@ $ tree
 │       │   └── dc-tcn-base.yaml
 │       ├── durations.csv
 │       ├── labels.txt
-│       ├── requirements.txt
+│       ├── setup.sh
 │       └── src
 │           ├── augment.py
 │           ├── data.py
@@ -171,6 +173,7 @@ $ tree
 │           ├── preprocess_roi.py
 │           ├── tcn
 │           └── train.py
+└── README.md
 ```
 
 ### Installation
@@ -188,9 +191,13 @@ bash setup.sh
 
 # Or install dependencies for word-level VSR
 cd ./SyncVSR/LRW/video
-bash setup.sh 
+bash setup.sh
 
-# (optional) Install fairseq to use vq-wav2vec audio quantizer. 
+# You may also install dependencies for landmark VSR, trainable on TPU devices.
+cd ./SyncVSR/LRW/landmark
+bash setup.sh
+
+# (Optional) Install fairseq to use vq-wav2vec audio quantizer. 
 # We recommend to use quantized audio tokens at https://github.com/KAIST-AILab/SyncVSR/releases/tag/weight-audio-v1
 # Or use wav2vec 2.0's audio quantizer to avoid using fairseq.
 git clone https://github.com/pytorch/fairseq
@@ -201,18 +208,37 @@ pip install -r requirements.txt
 wget https://dl.fbaipublicfiles.com/fairseq/wav2vec/vq-wav2vec_kmeans.pt -P ./
 ```
 
-### Train
-
-For training with our methodology, please run the command below after preprocessing the dataset. You may change configurations in yaml files.
-```shell
-python ./src/train.py ./config/bert-12l-512d.yaml devices=[0] # Transformer backbone
-```
-
 ### Inference
 
-For inference, please download the pretrained checkpoint from the repository's [release section](https://github.com/KAIST-AILab/SyncVSR/releases/) and run the code with the following command.
+**Word-Level VSR**
+
 ```shell
-python ./src/inference.py ./config/bert-12l-512d.yaml devices=[0] # Transformer backbone
+cd ./SyncVSR/LRW/video
+python ./src/inference.py ./config/bert-12l-512d_LRW_96_bf16_rrc_WB.yaml devices=[0]
+```
+
+**Sentence-Level VSR**
+```shell
+cd ./SyncVSR/LRS/video
+python main.py config/lrs2.yaml # evaluating on lrs2 
+python main.py config/lrs3.yaml # evaluating on lrs3
+```
+
+### Train
+
+**Word-Level VSR**
+After preprocessing the dataset using [preprocess_roi.py](https://github.com/KAIST-AILab/SyncVSR/blob/main/LRW/video/src/preprocess_roi.py) and [preprocess_pkl.py](https://github.com/KAIST-AILab/SyncVSR/blob/main/LRW/video/src/preprocess_pkl.py), please change configurations in yaml files in [LRW/video/config](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRW/video/config).
+```shell
+python ./src/train.py ./config/bert-12l-512d_LRW_96_bf16_rrc_WB.yaml devices=[0]
+```
+
+**Sentence-Level VSR**
+After preprocessing the dataset using [LRS/video/preprocess](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRS/video/preprocess), please change configurations in yaml files in [LRS/video/config](https://github.com/KAIST-AILab/SyncVSR/tree/main/LRS/video/config).
+
+```shell
+cd ./SyncVSR/LRS/video
+python main.py config/lrs2.yaml
+python main.py config/lrs3.yaml
 ```
 
 ### Acknowledgement

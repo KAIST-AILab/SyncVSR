@@ -57,4 +57,4 @@ train:
   use_val_resize: false
 
 evaluate:
-  ckpt_path: ./cross-modal-sync/i9umrm1x/checkpoints/epoch=167-step=213864.ckpt
+  ckpt_path: ./LRW/video/LRW_CKPT_epoch_167_step_213864.ckpt

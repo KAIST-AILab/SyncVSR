@@ -18,7 +18,7 @@ Visual Speech Recognition (VSR) stands at the intersection of computer vision an
 
 |                     Overview of SyncVSR                      |                Performance of SyncVSR on LRS3                |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| <img width="300" alt="image" src="./others/SyncVSR.png?raw=true"> | <img width="440" alt="image" src="./others/LRS3.png?raw=true"> |
+| <img width="300" alt="image" src="./assets/SyncVSR.png?raw=true"> | <img width="440" alt="image" src="./assets/LRS3.png?raw=true"> |
 
 
 
@@ -176,21 +176,23 @@ $ tree
 ### Installation
 For the replicating state-of-the-art results from the scratch, please follow the instructions below.
 ```shell
-# install depedency through apt-get
+# Install depedency through apt-get
 apt-get update 
 apt-get -yq install ffmpeg libsm6 libxext6 
 apt install libturbojpeg tmux -y
 
-# create conda virtual env
-wget https://repo.continuum.io/archive/Anaconda3-2022.10-Linux-x86_64.sh
-bash Anaconda3-2022.10-Linux-x86_64.sh -b
-source /root/anaconda3/bin/activate base
-conda create -n lip python=3.9.13 -y
-source /root/anaconda3/bin/activate lip
-
-# install dependencies
+# Install dependencies for sentence-level VSR
 git clone https://github.com/KAIST-AILab/SyncVSR.git
-cd SyncVSR
+cd ./SyncVSR/LRS/video
+bash setup.sh 
+
+# Or install dependencies for word-level VSR
+cd ./SyncVSR/LRW/video
+bash setup.sh 
+
+# (optional) Install fairseq to use vq-wav2vec audio quantizer. 
+# We recommend to use quantized audio tokens at https://github.com/KAIST-AILab/SyncVSR/releases/tag/weight-audio-v1
+# Or use wav2vec 2.0's audio quantizer to avoid using fairseq.
 git clone https://github.com/pytorch/fairseq
 cd fairseq
 pip install --editable ./

@@ -86,8 +86,8 @@ def retrieve_txt(path):
 def _normalized_to_pixel_coordinates(
     normalized_x: float,
     normalized_y: float,
-    image_width: int = 160,
-    image_height: int = 160,
+    image_width: int = 256,
+    image_height: int = 256,
 ) -> Union[None, Tuple[int, int]]:
     """
     Converts normalized value pair to pixel coordinates.
@@ -121,7 +121,7 @@ def extract_opencv(filename):
 
         median_x = (np.median(x_coords) + np.mean(x_coords) + min_x + max_x) / 4
         median_y = (np.median(y_coords) + np.mean(y_coords) + min_y + max_y) / 4
-        median_x, median_y = _normalized_to_pixel_coordinates(median_x, median_y)
+        median_x, median_y = _normalized_to_pixel_coordinates(median_x, median_y,)
         bounding_box = [
             median_x - 48 - 8,
             median_y - 48 - 8,
@@ -139,7 +139,7 @@ def extract_opencv(filename):
             lookup_idx = frame_idx
             left_x, top_y, right_x, bottom_y = list_bbox[lookup_idx]
 
-            if left_x <= 0 or top_y <= 0 or right_x >= 160 or bottom_y >= 160:
+            if left_x <= 0 or top_y <= 0 or right_x >= 256 or bottom_y >= 256:
                 print("out of bound for file ", filename, " at frame ", frame_idx)
                 x_target_size = 112.0
                 y_target_size = 112.0
@@ -149,11 +149,11 @@ def extract_opencv(filename):
                 if top_y <= 0.0:
                     top_y = 0.0
                     bottom_y = top_y + y_target_size
-                if right_x >= 160.0:
-                    right_x = 160.0
+                if right_x >= 256.0:
+                    right_x = 256.0
                     left_x = right_x - x_target_size
-                if bottom_y >= 160.0:
-                    bottom_y = 160.0
+                if bottom_y >= 256.0:
+                    bottom_y = 256.0
                     top_y = bottom_y - y_target_size
 
             cropped_frame = frame[

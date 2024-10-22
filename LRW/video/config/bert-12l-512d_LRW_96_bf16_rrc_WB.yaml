@@ -4,7 +4,7 @@ data:
   test: ./LRW/dataset/*/test/*.pkl
   label_directory: ./LRW/dataset
   durations: ./LRW/durations.csv
-  use_word_boundary: false
+  use_word_boundary: true
   input_size: 96
   num_workers: 8
 
@@ -51,7 +51,7 @@ train:
   log_every_n_steps: 1000
   label_smoothing: 0.0
   use_cutmix: true
-  precision: bf16
+  precision: 16
   use_timemask: true
   use_rrc: true
   use_val_resize: false

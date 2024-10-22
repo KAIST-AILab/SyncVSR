@@ -4,6 +4,7 @@ data:
   test: ./dataset/*/test/*.pkl
   label_directory: ./dataset
   durations: ./durations.csv
+  audio_path: /data/audio-tokens/LRW # Download audio tokens https://github.com/KAIST-AILab/SyncVSR/releases/tag/weight-audio-v1 to avoid using fairseq dependency
   use_word_boundary: false
   input_size: 96
   num_workers: 8
@@ -12,7 +13,7 @@ model:
   name: transformer
   resnet: resnet18
   wav2vec:
-    path: ./vq-wav2vec_kmeans.pt
+    path: ./vq-wav2vec_kmeans.pt # Instead of fairseq checkpoint for vq-wav2vec, you may use huggingface-based wav2vec paths like "facebook/wav2vec2-base-960h" for English and "kehanlu/mandarin-wav2vec2" for mandarin
   bert:
     type: x-transformers
     num_tokens: 1

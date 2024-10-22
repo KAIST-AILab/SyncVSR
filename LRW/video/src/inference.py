@@ -22,7 +22,7 @@ def main(config: DictConfig):
 
     trainer = Trainer(
         accelerator="gpu",
-        devices=config.devices,
+        devices="auto",
         precision=config.train.precision,
         amp_backend="native",
         strategy="ddp",
@@ -39,12 +39,9 @@ def main(config: DictConfig):
         callbacks=[checkpoint, LearningRateMonitor("step")],
     )
 
-    trainer.test(
-        model=TransformerLightningModule(config) if config.model.name=='transformer' else \
-            DCTCNLightningModule(config),
-        ckpt_path=config.evaluate.ckpt_path,
-        dataloaders=[test_dataloader],
-    )
+    model_module = TransformerLightningModule(config) if config.model.name=='transformer' else DCTCNLightningModule(config)
+    model_module = model_module.load_from_checkpoint(config.evaluate.ckpt_path, config=config, strict=False)
+    trainer.test(model=model_module, dataloaders=[test_dataloader])
 
 
 if __name__ == "__main__":

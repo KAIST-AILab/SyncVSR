@@ -18,9 +18,11 @@ from transformers import (
     Wav2Vec2ForPreTraining
 )
 import pytorch_lightning as pl
-from fairseq.checkpoint_utils import load_model_ensemble, load_model_ensemble_and_task
+from utils import check_availability
 from omegaconf import DictConfig
 from x_transformers import Encoder
+if check_availability("fairseq"):
+    from fairseq.checkpoint_utils import load_model_ensemble, load_model_ensemble_and_task
 
 from augment import CutMix
 from tcn.model import Lipreading
@@ -53,16 +55,21 @@ class TransformerLightningModule(pl.LightningModule):
         self.resnet = timm.create_model(config.model.resnet)
 
         # Cross Modal Sync Related
-        if "vq" in config.model.wav2vec.path: # vq-wav2vec
+        if "vq" in config.model.wav2vec.path: 
+            self.codec = "vq"
+            self.audio_alignment = 4
+            self.vq_groups = 2
+            self.audio_vocab_size = 320 # or metadata.model.vq_vars
+        elif "wav2vec2" in config.model.wav2vec.path:
+            self.codec = "wav2vec2"
+            self.audio_alignment = 2
+            self.vq_groups = 2
+            self.audio_vocab_size = 640
+        
+        if "vq" in config.model.wav2vec.path and check_availability("fairseq"): # vq-wav2vec
             wav2vec, metadata = load_model_ensemble([config.model.wav2vec.path])            
             self.wav2vec = wav2vec[0].requires_grad_(False).eval()
-            self.audio_alignment = 4
-            self.audio_vocab_size = metadata.model.vq_vars # 320
-            self.vq_groups = metadata.model.vq_groups
-            self.audio_projection = nn.Linear(config.model.bert.dim+extra_dim, self.audio_alignment * self.vq_groups * self.audio_vocab_size) # 768 -> 4 * 2 * 320
-            self.lambda_audio = config.optim.lambda_audio
-            self.codec = "vq"
-        if "wav2vec2" in config.model.wav2vec.path: # wav2vec2
+        elif "wav2vec2" in config.model.wav2vec.path: # wav2vec2
             wav2vec = Wav2Vec2ForPreTraining.from_pretrained(config.model.wav2vec.path)
             del wav2vec.wav2vec2.encoder # remove transformer encoder blocks
             wav2vec = wav2vec.requires_grad_(False).eval()
@@ -70,18 +77,14 @@ class TransformerLightningModule(pl.LightningModule):
             codevectors = codevectors.view(1, -1, 1).expand_as(wav2vec.quantizer.codevectors)
             wav2vec.quantizer.codevectors.data = codevectors.float()
             self.wav2vec = wav2vec
-            self.audio_alignment = 2
-            self.vq_groups = 2
-            self.audio_vocab_size = 640
-            self.audio_projection = nn.Linear(config.model.bert.dim+extra_dim, self.audio_alignment * self.vq_groups * self.audio_vocab_size)
-            self.lambda_audio = config.optim.lambda_audio
-            self.codec = "wav2vec2"
+
+        self.lambda_audio = config.optim.lambda_audio
+        self.audio_projection = nn.Linear(config.model.bert.dim+extra_dim, self.audio_alignment * self.vq_groups * self.audio_vocab_size)  # 768 -> 4 * 2 * 320 or 2 * 2 * 640
         print(f"using {self.codec} neural audio codec")
 
         self.cutmix = CutMix(
-            self.word_labels, 
-            self.wav2vec,
-            self.codec
+            self.word_labels,
+            self.wav2vec if check_availability("fairseq") else None,
         ).eval()
 
         if config.model.bert.type == "huggingface":
@@ -165,10 +168,7 @@ class TransformerLightningModule(pl.LightningModule):
         logits_audio = self.audio_projection(last_hidden_state[:, 1:, :])
         logits_audio = logits_audio.float() # converting into float type before the loss calculation
         logits_audio = logits_audio.reshape(B, seq_len, self.audio_alignment * self.vq_groups, self.audio_vocab_size)
-        loss_audio = F.cross_entropy(
-            logits_audio.reshape(-1, self.audio_vocab_size),
-            audio_tokens.flatten(),
-        )
+        loss_audio = F.cross_entropy(logits_audio.reshape(-1, self.audio_vocab_size), audio_tokens.flatten())
         
         # Composite Loss
         loss_total = loss_category + loss_audio * self.lambda_audio
@@ -196,20 +196,20 @@ class TransformerLightningModule(pl.LightningModule):
         if self.config.train.use_cutmix:
             batch = self.cutmix(*batch)
         else:
-            batch[1] = self.forward_audios(batch[1])
+            batch[1] = self.forward_audios(batch[1]) if check_availability("fairseq") else batch[1]
         metrics = self(*batch)
         self.log_dict({f"train/{k}": v for k, v in metrics.items()})
         return metrics["loss_total"]
 
     def validation_step(self, batch: tuple[torch.Tensor, ...], idx: int):
         self.is_train = False
-        batch[1] = self.forward_audios(batch[1])
+        batch[1] = self.forward_audios(batch[1]) if check_availability("fairseq") else batch[1]
         metrics = self(*batch)
         self.log_dict({f"val/{k}": v for k, v in metrics.items()}, sync_dist=True)
 
     def test_step(self, batch: tuple[torch.Tensor, ...], idx: int):
         self.is_train = False
-        batch[1] = self.forward_audios(batch[1])
+        batch[1] = self.forward_audios(batch[1]) if check_availability("fairseq") else batch[1]
         metrics = self(*batch)
         self.log_dict({f"test/{k}": v for k, v in metrics.items()}, sync_dist=True)
 

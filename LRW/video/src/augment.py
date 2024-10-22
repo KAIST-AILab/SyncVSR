@@ -3,8 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Any, Dict, Tuple
+from utils import check_availability
 
-from fairseq.models.wav2vec.wav2vec import Wav2VecModel
+if check_availability("fairseq"):
+    from fairseq.models.wav2vec.wav2vec import Wav2VecModel
 
 
 class CutMix(nn.Module):
@@ -16,7 +18,7 @@ class CutMix(nn.Module):
     def __init__(
         self,
         num_labels: int,
-        wav2vec: Wav2VecModel,
+        wav2vec,
     ) -> None:
         super().__init__()
         self.num_labels = num_labels
@@ -33,8 +35,11 @@ class CutMix(nn.Module):
         target_ids = torch.randint(0, batch_size, (batch_size,))
         target_rates = torch.rand(batch_size)
 
-        audio_tokens = self.wav2vec.feature_extractor(audios)
-        audio_tokens = self.wav2vec.vector_quantizer.forward_idx(audio_tokens)[1]
+        if self.wav2vec:
+            audio_tokens = self.wav2vec.feature_extractor(audios)
+            audio_tokens = self.wav2vec.vector_quantizer.forward_idx(audio_tokens)[1]
+        else:
+            audio_tokens = audios
 
         mixed_videos, mixed_audios, mixed_labels, mixed_word_masks = [], [], [], []
 

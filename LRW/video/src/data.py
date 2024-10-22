@@ -11,8 +11,8 @@ from omegaconf import DictConfig
 from dataclasses import dataclass
 from torch.utils.data import DataLoader, Dataset
 from turbojpeg import TJPF_GRAY, TurboJPEG
+from utils import check_availability
 from augment import FunctionalModule, TimeMask
-
 
 @dataclass
 class LRWDatasetForTransformer(Dataset):
@@ -20,8 +20,11 @@ class LRWDatasetForTransformer(Dataset):
     labels: list[str]
     transform: nn.Module | None = None
     durations: pd.DataFrame = None
+    audio_path: str = None
+    codec: str = "vq"
     jpeg: TurboJPEG = TurboJPEG()
     neural_audio_codec_sample_rate: int = 16000
+    use_fairseq: bool = check_availability("fairseq")
 
     def __len__(self) -> int:
         return len(self.filenames)
@@ -29,25 +32,31 @@ class LRWDatasetForTransformer(Dataset):
     def __getitem__(
         self, index: int
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        data = torch.load(self.filenames[index])
-        label = self.filenames[index].split("/")[-3]
+        pkl_filename = self.filenames[index]
+        data = torch.load(pkl_filename)
+        label = pkl_filename.split("/")[-3]
         label = torch.tensor(self.labels.index(label), dtype=torch.int64)
 
         # Video
         video = [self.jpeg.decode(img, pixel_format=TJPF_GRAY) for img in data["video"]]
         frame_length = len(video)
         video = torch.as_tensor(np.stack(video)).permute(0, 3, 1, 2) # T x C x H x W
-        # video = 2 * video.float() / 0xFF - 1
 
         if self.transform is not None:
             video = self.transform(video)
 
         # Audio
-        audio = data["audio"]
+        if self.use_fairseq:
+            audio = data["audio"]
+        else:
+            # load the audio from the pkl file that we have uploaded in release section 
+            # https://github.com/KAIST-AILab/SyncVSR/releases/tag/weight-audio-v1
+            audio_path = pkl_filename.replace(os.path.dirname(os.path.dirname(os.path.dirname(pkl_filename))), self.audio_path)
+            audio = torch.load(audio_path)[f"{self.codec}_tokens"].squeeze()
         
         # Word Boundary Information
         if self.durations is not None: # LRW with wb
-            example_name = "/".join(self.filenames[index].split("/")[-2:])[:-4]
+            example_name = "/".join(pkl_filename.split("/")[-2:])[:-4]
             word_boundary = int(self.durations.loc[example_name].length)
             start_index = (frame_length - word_boundary) // 2
             end_index = start_index + word_boundary
@@ -139,6 +148,10 @@ def create_dataloaders(config: DictConfig) -> tuple[DataLoader, DataLoader, Data
     num_workers = config.data.num_workers
     crop_size = (config.data.input_size, config.data.input_size)
     (mean, std) = (0.421, 0.165)
+    if "vq" in config.model.wav2vec.path: 
+        codec = "vq"
+    elif "wav2vec2" in config.model.wav2vec.path:
+        codec = "wav2vec2"
 
     # define transforms
     train_transforms = torch.nn.Sequential(
@@ -159,9 +172,9 @@ def create_dataloaders(config: DictConfig) -> tuple[DataLoader, DataLoader, Data
     )
 
     if config.model.name == "transformer":
-        train_dataset = LRWDatasetForTransformer(glob.glob(config.data.train), labels, train_transforms, durations)
-        validation_dataset = LRWDatasetForTransformer(glob.glob(config.data.validation), labels, val_test_transforms, durations)
-        test_dataset = LRWDatasetForTransformer(glob.glob(config.data.test), labels, val_test_transforms, durations)
+        train_dataset = LRWDatasetForTransformer(glob.glob(config.data.train), labels, train_transforms, durations, config.data.audio_path, codec)
+        validation_dataset = LRWDatasetForTransformer(glob.glob(config.data.validation), labels, val_test_transforms, durations, config.data.audio_path, codec)
+        test_dataset = LRWDatasetForTransformer(glob.glob(config.data.test), labels, val_test_transforms, durations, config.data.audio_path, codec)
     elif config.model.name == "dc-tcn":
         train_dataset = LRWDatasetForDCTCN(glob.glob(config.data.train), labels, train_transforms, durations, config.data.max_time_masks, validation=False,)
         validation_dataset = LRWDatasetForDCTCN(glob.glob(config.data.validation), labels, val_test_transforms, durations, config.data.max_time_masks, validation=True,)

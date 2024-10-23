@@ -33,4 +33,5 @@ pip install pandas==1.5.3 numpy==1.26.0
 
 pip install -U git+https://github.com/lilohuang/PyTurboJPEG.git
 pip install omegaconf sentencepiece transformers scikit-learn pydub timm wandb
+pip install opencv-python mediapipe
 wget https://github.com/KAIST-AILab/SyncVSR/releases/download/weight-audio-v1/LRW_CKPT_epoch_167_step_213864.ckpt

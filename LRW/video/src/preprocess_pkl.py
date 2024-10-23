@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from turbojpeg import TurboJPEG, TJPF_GRAY, TJSAMP_GRAY, TJFLAG_PROGRESSIVE
 from tqdm import tqdm
+from utils import check_availability
 import mediapipe as mp
 from pydub import AudioSegment
 
@@ -22,6 +23,11 @@ if not os.path.exists(target_dir):
 jpeg = TurboJPEG()
 mp_face_mesh = mp.solutions.face_mesh
 
+
+# Coordinates Information
+# https://github.com/google-ai-edge/mediapipe/issues/1615
+# https://github.com/google/mediapipe/blob/33d683c67100ef3db37d9752fcf65d30bea440c4/mediapipe/python/solutions/face_mesh_connections.py
+# https://github.com/google/mediapipe/blob/a908d668c730da128dfa8d9f6bd25d519d006692/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png
 
 FACEMESH_LIPS = [
     0,
@@ -66,21 +72,31 @@ FACEMESH_LIPS = [
     415,
 ]
 
+FACEMESH_OVAL = [
+    58,
+    172,
+    136,
+    150,
+    149,
+    176,
+    148,
+    152,
+    377,
+    400,
+    378,
+    379,
+    365,
+    397,
+    288
+]
+
+FACEMESH_ROI = FACEMESH_LIPS + FACEMESH_OVAL
 
 def retrieve_landmark(path):
     # replace .mp4 with .npy
     path = path.replace(".mp4", ".npy")
     # read landmark
     return np.load(path)
-
-
-def retrieve_txt(path):
-    # replace .mp4 with .txt
-    path = path.replace(".mp4", ".txt")
-    # read text
-    with open(path, "r") as f:
-        text = f.read()
-    return text
 
 
 def _normalized_to_pixel_coordinates(
@@ -114,19 +130,19 @@ def extract_opencv(filename):
         min_x, min_y, min_z = np.min(x_coords), np.min(y_coords), np.min(z_coords)
         max_x, max_y, max_z = np.max(x_coords), np.max(y_coords), np.max(z_coords)
 
-        # extract FACEMESH_LIPS
-        x_coords = x_coords[FACEMESH_LIPS]
-        y_coords = y_coords[FACEMESH_LIPS]
+        # extract FACEMESH_ROI
+        x_coords = x_coords[FACEMESH_ROI]
+        y_coords = y_coords[FACEMESH_ROI]
         # print(x_coords.shape, y_coords.shape)
 
         median_x = (np.median(x_coords) + np.mean(x_coords) + min_x + max_x) / 4
-        median_y = (np.median(y_coords) + np.mean(y_coords) + min_y + max_y) / 4
-        median_x, median_y = _normalized_to_pixel_coordinates(median_x, median_y,)
+        median_y = (np.median(y_coords) + np.mean(y_coords)) / 2
+        median_x, median_y = _normalized_to_pixel_coordinates(median_x, median_y)
         bounding_box = [
             median_x - 48 - 8,
-            median_y - 48 - 8,
+            median_y - 48,
             median_x + 48 + 8,
-            median_y + 48 + 8,
+            median_y + 48,
         ]
         list_bbox.append(bounding_box)
 
@@ -142,7 +158,7 @@ def extract_opencv(filename):
             if left_x <= 0 or top_y <= 0 or right_x >= 256 or bottom_y >= 256:
                 print("out of bound for file ", filename, " at frame ", frame_idx)
                 x_target_size = 112.0
-                y_target_size = 112.0
+                y_target_size = 96.0
                 if left_x <= 0.0:
                     left_x = 0.0
                     right_x = left_x + x_target_size
@@ -159,7 +175,7 @@ def extract_opencv(filename):
             cropped_frame = frame[
                 int(top_y) : int(bottom_y), int(left_x) : int(right_x)
             ]
-            if cropped_frame.shape != (112, 112, 3):
+            if cropped_frame.shape != (96, 112, 3):
                 raise Exception(
                     "Error in frame", filename, "with shape of", cropped_frame.shape
                 )
@@ -177,7 +193,7 @@ class LRWDataset(Dataset):
     def __init__(self):
         root_dir = "./LRW/lipread_mp4/"
 
-        with open("./LRW/labels.txt") as myfile:
+        with open("./labels.txt") as myfile:
             labels = myfile.read().splitlines()
 
         all_files = []
@@ -198,12 +214,9 @@ class LRWDataset(Dataset):
         result = {}
 
         result["video"] = extract_opencv(file_name)
-        result["audio"] = AudioSegment.from_file(file_name, format="mp4")
-        result["text"] = retrieve_txt(file_name)
+        result["audio"] = AudioSegment.from_file(file_name, format="mp4") if check_availability("fairseq") else None
 
-        savename = file_name.replace("dset_mp4", "lipread_dataset").replace(
-            ".mp4", ".pkl"
-        )
+        savename = file_name.replace("dset_mp4", "lipread_dataset").replace(".mp4", ".pkl")
         # if the folder does not exist, create it
         if not os.path.exists(os.path.dirname(savename)):
             os.makedirs(os.path.dirname(savename))

@@ -254,7 +254,7 @@ If you find SyncVSR useful for your research, please consider citing our paper:
 
 ```
 @inproceedings{ahn2024syncvsr,
-  author={Young Jin Ahn, Jungwoo Park, Sangha Park, Jonghyun Choi, Kee-Eung Kim},
+  author={Young Jin Ahn and Jungwoo Park and Sangha Park and Jonghyun Choi and Kee-Eung Kim},,
   title={SyncVSR: Data-Efficient Visual Speech Recognition with End-to-End Crossmodal Audio Token Synchronization},
   year={2024},
   booktitle={Proc. Interspeech 2024},

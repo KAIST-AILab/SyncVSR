@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 from pytorch_lightning import LightningDataModule
 
 from datamodule.av_dataset import AVDataset
@@ -58,7 +59,14 @@ class DataModule(LightningDataModule):
         self.cfg.gpus = torch.cuda.device_count()
         self.total_gpus = torch.cuda.device_count()
         
-        self.train_filenames = glob(f"/data/{self.cfg.dataset}/train/*/*.pkl")
+        self.train_filenames = []
+        pattern = f"/data/{self.cfg.dataset}/train/*/*.pkl"
+        for filename in tqdm(glob(pattern), desc="Repeated sampling for video clips longer than 160 frames..."):
+            data = torch.load(filename)
+            video_length = len(data["video"])
+            repeat_count = int(np.ceil(video_length / 160))
+            self.train_filenames.extend([filename] * repeat_count)
+        
         self.val_filenames = glob(f"/data/{self.cfg.dataset}/val/*/*.pkl")
         self.test_filenames = glob(f"/data/{self.cfg.dataset}/test/*/*.pkl")
 
